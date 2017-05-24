@@ -1,0 +1,33 @@
+<project default="run" basedir=".">
+	<property file="src/main/resources/config.properties"/>
+
+	<taskdef resource="net/sf/antcontrib/antlib.xml">
+		<classpath>
+	    	<pathelement location="lib/ant-contrib-1.0b3.jar"/>
+	  	</classpath>
+	</taskdef>
+
+	<target name="proxy">		
+		<if>
+		 	<equals arg1="${use_proxy}" arg2="true" />
+		 	<then>
+			    <setproxy proxyhost="${proxy_host}" proxyport="${proxy_port}" proxyuser="${proxy_user}" proxypassword="${proxy_password}"/>
+		   		<echo message="Proxy setted" />
+		 	</then>
+		 	<else>
+		   		<echo message="No proxy used" />
+		 	</else>
+		</if>
+		    <!--  -->
+	</target>
+
+	<target name="run" depends="proxy">				
+		<java classname="main.Main">		
+			<classpath>
+				<pathelement location="./target/AuditTrailExtractor-1.0.0-SNAPSHOT.jar"/>
+				<pathelement location="${rt_location}"/>
+			</classpath>
+		</java>
+	</target>
+	
+</project>
