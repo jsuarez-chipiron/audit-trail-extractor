@@ -22,12 +22,9 @@
 	</target>
 
 	<target name="run" depends="proxy">				
-		<java classname="main.Main">		
-			<classpath>
-				<pathelement location="./target/AuditTrailExtractor-1.0.0-SNAPSHOT.jar"/>
-				<pathelement location="./lib/rt.jar"/>
-			</classpath>
-		</java>
+		<exec executable="sh" error="/dev/null">
+			<arg value="./target/bin/main"/>
+		</exec>
 	</target>
 	
 </project>

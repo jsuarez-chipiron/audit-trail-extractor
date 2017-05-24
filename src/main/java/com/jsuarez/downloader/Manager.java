@@ -5,6 +5,15 @@
  */
 package com.jsuarez.downloader;
 
+import com.gargoylesoftware.htmlunit.BrowserVersion;
+import com.gargoylesoftware.htmlunit.ScriptResult;
+import com.gargoylesoftware.htmlunit.TextPage;
+import com.gargoylesoftware.htmlunit.WebClient;
+import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
+import com.gargoylesoftware.htmlunit.html.HtmlForm;
+import com.gargoylesoftware.htmlunit.html.HtmlInput;
+import com.gargoylesoftware.htmlunit.html.HtmlPage;
+import com.gargoylesoftware.htmlunit.util.Cookie;
 import com.sforce.soap.partner.Login;
 import com.sforce.soap.partner.LoginResponse;
 import com.sforce.soap.partner.SforceService;
@@ -13,6 +22,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -32,6 +42,7 @@ public class Manager {
     private static Properties props;
     public static String cookieString;
     public static String orgId;
+    public static String sid;
     public static String instanceUrl;    
     public static String downloadDir;
     private static String wsdlUrl;
@@ -64,7 +75,8 @@ public class Manager {
         login.setPassword(props.getProperty("password"));
 
         LoginResponse resp = port.login(login);
-        cookieString = "oid=" + orgId + "; sid=" + resp.getResult().getSessionId();
+        sid = resp.getResult().getSessionId();
+        cookieString = "oid=" + orgId + "; sid=" + sid;
 
         System.out.println("Login successfully");
     }
@@ -91,7 +103,7 @@ public class Manager {
 
             is.close();
             baos.close();
-
+                        
             connection.disconnect();
 
             aUrl = page.substring(page.indexOf("/servlet/servlet.SetupAuditTrail?id=")); 
@@ -104,31 +116,51 @@ public class Manager {
         return aUrl;
     }   
     
-    public static void getAuditCSV(String url) throws Exception {
-        HttpURLConnection connection = (HttpURLConnection) (new URL(instanceUrl + url).openConnection());
-        connection.setRequestProperty("Connection", "Keep-Alive");
-        connection.setRequestProperty("Cookie", cookieString);
-        connection.setRequestProperty("X-SFDC-Session", orgId);
-
-        InputStream is = connection.getInputStream();
-        byte[] buff = new byte[1024];
-        int c = 0;
+    public static void getAuditCSV() throws Exception {
+        final WebClient webClient = new WebClient(BrowserVersion.FIREFOX_52);
         
+        HtmlPage loginPage = webClient.getPage(instanceUrl + "/setup/org/orgsetupaudit.jsp?setupid=SecurityEvents&retURL=%2Fui%2Fsetup%2FSetup%3Fsetupid%3DSecurity");
+        
+        HtmlForm loginForm = (HtmlForm) loginPage.getFormByName("login");
+        
+        HtmlInput username = (HtmlInput) loginForm.getInputByName("username");
+        username.setValueAttribute(props.getProperty("username"));
+        
+        HtmlInput password = (HtmlInput) loginForm.getInputByName("pw");
+        password.setValueAttribute(props.getProperty("password"));
+        
+        HtmlInput submit = (HtmlInput) loginForm.getInputByName("Login");
+        HtmlPage downloadPage = (HtmlPage) submit.click();
+               
+        ScriptResult result = downloadPage.executeJavaScript("window.location.href='https://jadm.my.salesforce.com/setup/org/orgsetupaudit.jsp?retURL=%2Fui%2Fsetup%2FSetup%3Fsetupid%3DSecurity&setupid=SecurityEvents\"):window.location.href=\"https://jadm.my.salesforce.com/setup/org/orgsetupaudit.jsp?retURL=%2Fui%2Fsetup%2FSetup%3Fsetupid%3DSecurity&setupid=SecurityEvents'");
+        
+        HtmlPage page3 = (HtmlPage) result.getNewPage();
+                
+        List<HtmlAnchor> anchors = page3.getAnchors();
+        HtmlAnchor aOut = null;
+        for (HtmlAnchor anchor: anchors){
+//            System.out.println("anchor = " + anchor.getHrefAttribute());
+            if (anchor.getHrefAttribute().contains("servlet/servlet.SetupAuditTrail?id=") ){
+                aOut = anchor;
+                break;
+            }
+        }
+        
+        System.out.println("aOut = " + aOut.getHrefAttribute());
+        TextPage page4 = (TextPage) aOut.click();
+        
+        String csvContent = page4.getContent();
+        System.out.println("page4 = " + csvContent);
+
         SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
         String today = sdf.format(new Date());
         
         String filename = workDir+File.separator+today+"_audit.csv";
 
-        FileOutputStream fos = new FileOutputStream(filename);
-
-        while ((c = is.read(buff, 0, 1024)) != -1) {
-            fos.write(buff, 0, c);
-        }
-        
-        fos.close();
-        is.close();
-        
-        connection.disconnect();
+        FileWriter fw = new FileWriter(filename);
+        fw.write(csvContent);
+        fw.flush();
+        fw.close();
 
         System.out.println("Audit file writed successfully");
 
@@ -136,10 +168,9 @@ public class Manager {
 
     public static void run() throws Exception {
         Manager.init();
-        Manager.doLogin();
-        String auditUrl = Manager.getAuditURL();
-        System.out.println("auditUrl = " + auditUrl);
-        Manager.getAuditCSV(auditUrl);
+        Manager.getAuditCSV();
+        
+        
     }
 
 }
