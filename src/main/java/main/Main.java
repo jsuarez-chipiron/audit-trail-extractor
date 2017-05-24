@@ -5,7 +5,7 @@
  */
 package main;
 
-import com.salesforce.downloader.Manager;
+import com.jsuarez.downloader.Manager;
 
 /**
  *
