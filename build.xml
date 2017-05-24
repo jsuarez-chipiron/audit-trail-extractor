@@ -26,5 +26,11 @@
 			<arg value="./target/bin/main"/>
 		</exec>
 	</target>
+
+	<target name="run-verbose" depends="proxy">				
+		<exec executable="sh">
+			<arg value="./target/bin/main"/>
+		</exec>
+	</target>
 	
 </project>

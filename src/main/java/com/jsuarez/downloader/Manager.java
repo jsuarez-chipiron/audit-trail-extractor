@@ -40,12 +40,9 @@ import java.util.ResourceBundle;
 public class Manager {
 
     private static Properties props;
-    public static String cookieString;
-    public static String orgId;
-    public static String sid;
-    public static String instanceUrl;    
-    public static String downloadDir;
-    private static String wsdlUrl;
+    
+    public static String instanceUrl;        
+    
     public static String workDir;
     
     protected static List<String> files;
@@ -56,70 +53,22 @@ public class Manager {
 
         props = new Properties();
         props.load(new FileReader(propsFile));
-
-        orgId = props.getProperty("orgId");
+        
         instanceUrl = props.getProperty("instanceUrl"); 
-        workDir = props.getProperty("work_dir");
-        wsdlUrl = "file://"+workDir+"/AuditTrailExtractor/src/main/resources/partner.wsdl";
+        workDir = props.getProperty("work_dir");        
         
         System.out.println("Properties loaded successfully");
     }
-
-    public static void doLogin() throws Exception {
-
-        SforceService service = new SforceService(new URL(wsdlUrl));
-        Soap port = service.getSoap();
-
-        Login login = new Login();
-        login.setUsername(props.getProperty("username"));
-        login.setPassword(props.getProperty("password"));
-
-        LoginResponse resp = port.login(login);
-        sid = resp.getResult().getSessionId();
-        cookieString = "oid=" + orgId + "; sid=" + sid;
-
-        System.out.println("Login successfully");
-    }
-
-    public static String getAuditURL() { 
-        String aUrl = null;
-        try {
-            HttpURLConnection connection = (HttpURLConnection) (new URL(instanceUrl + "/setup/org/orgsetupaudit.jsp?setupid=SecurityEvents&retURL=%2Fui%2Fsetup%2FSetup%3Fsetupid%3DSecurity").openConnection());
-            connection.setRequestProperty("Connection", "Keep-Alive");
-            connection.setRequestProperty("Cookie", cookieString);
-            connection.setRequestProperty("X-SFDC-Session", orgId);
-
-            InputStream is = connection.getInputStream();
-            byte[] buff = new byte[1024];
-            int c = 0;
-
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-
-            while ((c = is.read(buff, 0, 1024)) != -1) {
-                baos.write(buff, 0, c);
-            }
-
-            String page = new String(baos.toByteArray(), "UTF-8");
-
-            is.close();
-            baos.close();
-                        
-            connection.disconnect();
-
-            aUrl = page.substring(page.indexOf("/servlet/servlet.SetupAuditTrail?id=")); 
-            aUrl = aUrl.substring(0,aUrl.indexOf("\""));
             
-        } catch (Exception e) {            
-            System.out.println("ERROR: "+e.getMessage());
-            System.exit(0);
-        }
-        return aUrl;
-    }   
-    
     public static void getAuditCSV() throws Exception {
-        final WebClient webClient = new WebClient(BrowserVersion.FIREFOX_52);
         
-        HtmlPage loginPage = webClient.getPage(instanceUrl + "/setup/org/orgsetupaudit.jsp?setupid=SecurityEvents&retURL=%2Fui%2Fsetup%2FSetup%3Fsetupid%3DSecurity");
+        final WebClient webClient = new WebClient(BrowserVersion.FIREFOX_52);
+        System.out.println("25%");
+        
+        HtmlPage loginPage = webClient.getPage(instanceUrl + "/setup/org/orgsetupaudit.jsp?setupid=SecurityEvents&retURL=%2Fui%2Fsetup%2FSetup%3Fsetupid%3DSecurity");        
+        System.out.println("50%");
+        
+        System.err.println(loginPage.asXml());
         
         HtmlForm loginForm = (HtmlForm) loginPage.getFormByName("login");
         
@@ -131,26 +80,30 @@ public class Manager {
         
         HtmlInput submit = (HtmlInput) loginForm.getInputByName("Login");
         HtmlPage downloadPage = (HtmlPage) submit.click();
-               
-        ScriptResult result = downloadPage.executeJavaScript("window.location.href='https://jadm.my.salesforce.com/setup/org/orgsetupaudit.jsp?retURL=%2Fui%2Fsetup%2FSetup%3Fsetupid%3DSecurity&setupid=SecurityEvents\"):window.location.href=\"https://jadm.my.salesforce.com/setup/org/orgsetupaudit.jsp?retURL=%2Fui%2Fsetup%2FSetup%3Fsetupid%3DSecurity&setupid=SecurityEvents'");
+        System.err.println(downloadPage.asXml());
+                               
+        ScriptResult result = downloadPage.executeJavaScript("window.location.href='/setup/org/orgsetupaudit.jsp?retURL=%2Fui%2Fsetup%2FSetup%3Fsetupid%3DSecurity&setupid=SecurityEvents'");
         
         HtmlPage page3 = (HtmlPage) result.getNewPage();
+        System.out.println("75%");
+        System.err.println(page3.asXml());
                 
         List<HtmlAnchor> anchors = page3.getAnchors();
         HtmlAnchor aOut = null;
         for (HtmlAnchor anchor: anchors){
-//            System.out.println("anchor = " + anchor.getHrefAttribute());
+
             if (anchor.getHrefAttribute().contains("servlet/servlet.SetupAuditTrail?id=") ){
+                System.err.print(anchor.getHrefAttribute());
                 aOut = anchor;
                 break;
             }
-        }
-        
-        System.out.println("aOut = " + aOut.getHrefAttribute());
-        TextPage page4 = (TextPage) aOut.click();
-        
+        }                
+                
+        TextPage page4 = (TextPage) aOut.click();  
+                        
         String csvContent = page4.getContent();
-        System.out.println("page4 = " + csvContent);
+        
+        System.err.println(csvContent);
 
         SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
         String today = sdf.format(new Date());
@@ -168,9 +121,7 @@ public class Manager {
 
     public static void run() throws Exception {
         Manager.init();
-        Manager.getAuditCSV();
-        
-        
+        Manager.getAuditCSV();                
     }
 
 }
