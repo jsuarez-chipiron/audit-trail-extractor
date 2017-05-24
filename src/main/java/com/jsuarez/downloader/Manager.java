@@ -9,18 +9,16 @@ import com.sforce.soap.partner.Login;
 import com.sforce.soap.partner.LoginResponse;
 import com.sforce.soap.partner.SforceService;
 import com.sforce.soap.partner.Soap;
-import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.Authenticator;
 import java.net.HttpURLConnection;
-import java.net.PasswordAuthentication;
 import java.net.URL;
-import java.util.ArrayList;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 import java.util.Properties;
 import java.util.ResourceBundle;
@@ -34,10 +32,11 @@ public class Manager {
     private static Properties props;
     public static String cookieString;
     public static String orgId;
-    public static String instanceUrl;
-    public static String fileSeparator;
+    public static String instanceUrl;    
     public static String downloadDir;
     private static String wsdlUrl;
+    public static String workDir;
+    
     protected static List<String> files;
 
     public static void init() throws IOException {
@@ -48,9 +47,9 @@ public class Manager {
         props.load(new FileReader(propsFile));
 
         orgId = props.getProperty("orgId");
-        instanceUrl = props.getProperty("instanceUrl");
-        fileSeparator = props.getProperty("file_separator");
-        wsdlUrl = props.getProperty("wsdl_url");
+        instanceUrl = props.getProperty("instanceUrl"); 
+        workDir = props.getProperty("work_dir");
+        wsdlUrl = "file://"+workDir+"/AuditTrailExtractor/src/main/resources/partner.wsdl";
         
         System.out.println("Properties loaded successfully");
     }
@@ -70,10 +69,10 @@ public class Manager {
         System.out.println("Login successfully");
     }
 
-    public static void getExportDate() {
-        boolean continua = true;
+    public static String getAuditURL() { 
+        String aUrl = null;
         try {
-            HttpURLConnection connection = (HttpURLConnection) (new URL(instanceUrl + "/ui/setup/export/DataExportPage/d").openConnection());
+            HttpURLConnection connection = (HttpURLConnection) (new URL(instanceUrl + "/setup/org/orgsetupaudit.jsp?setupid=SecurityEvents&retURL=%2Fui%2Fsetup%2FSetup%3Fsetupid%3DSecurity").openConnection());
             connection.setRequestProperty("Connection", "Keep-Alive");
             connection.setRequestProperty("Cookie", cookieString);
             connection.setRequestProperty("X-SFDC-Session", orgId);
@@ -95,74 +94,52 @@ public class Manager {
 
             connection.disconnect();
 
-            int i = page.indexOf("Schedule Date");
-            page = page.substring(i);
-
-            i = page.indexOf("</tr>");
-
-            page = page.substring(51, i - 5);
-
-            page = page.replaceAll("/", "-");
-
-            File dir = new File(props.getProperty("dest_dir") + page);
-            if (dir.exists()) {
-                System.out.println("The backup retrieve for date " + page + " was already done in the directory: " + dir.getAbsolutePath() + "\nIf you want to repeat it please remove the directory before.");
-                System.exit(0);
-                continua=false;
-            } else {
-                dir.mkdir();
-                downloadDir = dir.getAbsolutePath();
-            }
-        } catch (Exception e) {
-            if (!continua)
-                System.out.println("ERROR: Retrieving backup date\nHint: Check the language is set to English.\nHint: Check there are files to be downloaded");
+            aUrl = page.substring(page.indexOf("/servlet/servlet.SetupAuditTrail?id=")); 
+            aUrl = aUrl.substring(0,aUrl.indexOf("\""));
+            
+        } catch (Exception e) {            
+            System.out.println("ERROR: "+e.getMessage());
             System.exit(0);
         }
-    }
-
-    public static void getFilesList() throws Exception {
-        HttpURLConnection connection = (HttpURLConnection) (new URL(instanceUrl + "/servlet/servlet.OrgExport").openConnection());
+        return aUrl;
+    }   
+    
+    public static void getAuditCSV(String url) throws Exception {
+        HttpURLConnection connection = (HttpURLConnection) (new URL(instanceUrl + url).openConnection());
         connection.setRequestProperty("Connection", "Keep-Alive");
         connection.setRequestProperty("Cookie", cookieString);
         connection.setRequestProperty("X-SFDC-Session", orgId);
 
         InputStream is = connection.getInputStream();
-        BufferedReader br = new BufferedReader(new InputStreamReader(is, "UTF-8"));
-        files = new ArrayList<String>();
-
-        String linea = null;
-        while ((linea = br.readLine()) != null) {
-            files.add(linea);
-        }
-
-        System.out.println("File list extracted successfully");
-
-    }
-
-    public synchronized static String getNextFile() {
-        String result = null;
-        try {
-            result = files.get(0);
-            files.remove(0);
-        } catch (Exception e) {
-            result = null;
-        }
-        return result;
-    }
-
-    public static void downloadFiles() {
+        byte[] buff = new byte[1024];
+        int c = 0;
         
-        DownloadFile df = new DownloadFile("1");
-        df.download();
+        SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
+        String today = sdf.format(new Date());
+        
+        String filename = workDir+File.separator+today+"_audit.csv";
+
+        FileOutputStream fos = new FileOutputStream(filename);
+
+        while ((c = is.read(buff, 0, 1024)) != -1) {
+            fos.write(buff, 0, c);
+        }
+        
+        fos.close();
+        is.close();
+        
+        connection.disconnect();
+
+        System.out.println("Audit file writed successfully");
 
     }
 
     public static void run() throws Exception {
         Manager.init();
         Manager.doLogin();
-        Manager.getExportDate();
-        Manager.getFilesList();
-        Manager.downloadFiles();
+        String auditUrl = Manager.getAuditURL();
+        System.out.println("auditUrl = " + auditUrl);
+        Manager.getAuditCSV(auditUrl);
     }
 
 }

@@ -25,7 +25,7 @@
 		<java classname="main.Main">		
 			<classpath>
 				<pathelement location="./target/AuditTrailExtractor-1.0.0-SNAPSHOT.jar"/>
-				<pathelement location="${rt_location}"/>
+				<pathelement location="./lib/rt.jar"/>
 			</classpath>
 		</java>
 	</target>
