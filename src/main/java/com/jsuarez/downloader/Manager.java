@@ -13,20 +13,10 @@ import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
 import com.gargoylesoftware.htmlunit.html.HtmlForm;
 import com.gargoylesoftware.htmlunit.html.HtmlInput;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
-import com.gargoylesoftware.htmlunit.util.Cookie;
-import com.sforce.soap.partner.Login;
-import com.sforce.soap.partner.LoginResponse;
-import com.sforce.soap.partner.SforceService;
-import com.sforce.soap.partner.Soap;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
@@ -119,9 +109,19 @@ public class Manager {
 
     }
 
-    public static void run() throws Exception {
-        Manager.init();
-        Manager.getAuditCSV();                
+    public static void run() {
+        try {
+            Manager.init();
+        } catch (IOException ex) {
+            System.out.println("An error occurs: "+ex.getMessage());
+            System.exit(1);
+        }
+        try {
+            Manager.getAuditCSV();
+        } catch (Exception ex) {
+            System.out.println("An error occurs: "+ex.getMessage());
+            System.exit(1);
+        }
     }
 
 }

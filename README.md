@@ -1,6 +1,21 @@
-1. Compile the source:
+#Salesforce Audit Trail Extractor
+
+##Installation
+Compile the source:
+```
 mvn clean package
+```
 
-2. Set your parameters in the config.properties
+##Setup
+Set your parameters in the config.properties
 
-3. Run the jar generated
+##Run
+Run in normal mode
+```
+ant run
+``` 
+
+Run in verbose mode
+```
+ant run-verbose
+```
