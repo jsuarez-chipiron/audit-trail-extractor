@@ -1,15 +1,15 @@
-#Salesforce Audit Trail Extractor
+# Salesforce Audit Trail Extractor #
 
-##Installation
+## Installation ##
 Compile the source:
 ```
 mvn clean package
 ```
 
-##Setup
+## Setup ##
 Set your parameters in the config.properties
 
-##Run
+## Run ##
 Run in normal mode
 ```
 ant run
